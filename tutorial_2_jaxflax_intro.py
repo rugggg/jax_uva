@@ -71,3 +71,68 @@ print('JAX new - Random number 1:', jax_random_number_1)
 print('JAX new - Random number 2:', jax_random_number_2)
 
 
+# jax meant to be highly functional - don't do side effects, just input output, no global variables etc.
+# jax traces to jaxpr intermediate language. this requires the known input/output shapes, example:
+
+def simple_graph(x):
+    x = x + 2
+    x = x ** 2
+    x = x + 3
+    y = x.mean()
+    return y
+
+inp = jnp.arange(3, dtype=jnp.float32)
+print("inp:", inp)
+print("out:", simple_graph(inp))
+
+print(jax.make_jaxpr(simple_graph)(inp))
+
+global_list = []
+
+# Invalid function with side-effect
+def norm(x):
+    global_list.append(x)
+    x = x ** 2
+    n = x.sum()
+    n = jnp.sqrt(n)
+    return n
+
+print(jax.make_jaxpr(norm)(inp))
+
+
+# Automatic Differentiation
+# jax.grad! 
+# you do not need to do things like loss.backward() to compute gradients
+# bc jax works direct with functions. so, jax.grad takes in a function as it's
+# arg. 
+
+grad_function = jax.grad(simple_graph)
+gradients = grad_function(inp)
+print('Gradient', gradients)
+
+print('gradient jaxpr', jax.make_jaxpr(grad_function)(inp))
+
+# pretty sweet that you can just see the compute graph
+# great, but what if we want output and grad? good news, JAX thought of that
+val_grad_function = jax.value_and_grad(simple_graph)
+print(val_grad_function(inp))
+
+# cool cool, but then what if we want to track all the grads through a net?
+# pytrees!
+
+# now, to play some dark souls with jit
+# two ways, direct wrap func lor with decroator
+jitted_function = jax.jit(simple_graph)
+# or like:
+# @jax.jit
+# def simple_graph(x):
+
+# Create a new random subkey for generating new random values
+rng, normal_rng = jax.random.split(rng)
+large_input = jax.random.normal(normal_rng, (1000,))
+# Run the jitted function once to start compilation
+_ = jitted_function(large_input)
+
+# there is more in tutorial to 
+
+# ok time t
